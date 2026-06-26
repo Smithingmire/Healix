@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-healix-navy: #0D2A6B;
+  --color-healix-blue: #1E88E5;
+  --color-healix-green: #22C55E;
+  --color-healix-white: #F8FAFC;
+  --color-healix-gray: #64748B;
+  --color-healix-dark: #0D2A6B;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-healix-dark);
+    background-color: #FAFCFF;
+  }
+}
+
+/* Premium Dark Mode Styling & Transitions */
+* {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+html.dark {
+  background-color: #0B1120;
+  color: #F9FAFB;
+}
+
+html.dark body {
+  background-color: #0B1120 !important;
+  color: #F9FAFB !important;
+}
+
+/* Navbar & Header adaptation */
+html.dark header {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+}
+
+/* Sidebar adaptation */
+html.dark .bg-white {
+  background-color: #1F2937 !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: #0B1120 !important;
+}
+
+html.dark .bg-slate-50\/50 {
+  background-color: #111827 !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #1F2937 !important;
+}
+
+html.dark .bg-slate-100\/80 {
+  background-color: #111827 !important;
+}
+
+html.dark .bg-slate-200\/50 {
+  background-color: #111827 !important;
+}
+
+/* Section backgrounds */
+html.dark .bg-\[\#F8FAFC\] {
+  background-color: #0B1120 !important;
+}
+
+html.dark .bg-\[\#FAFCFF\] {
+  background-color: #111827 !important;
+}
+
+/* Cards & Modals */
+html.dark .bg-white\/60 {
+  background-color: rgba(31, 41, 55, 0.7) !important;
+}
+
+html.dark .bg-gradient-to-b.from-slate-50\/50.to-white {
+  background-image: linear-gradient(to bottom, #111827, #1F2937) !important;
+}
+
+/* Buttons and accents */
+html.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+html.dark .bg-\[\#1E88E5\] {
+  background-color: #3B82F6 !important;
+}
+
+html.dark .text-\[\#1E88E5\] {
+  color: #3B82F6 !important;
+}
+
+html.dark .hover\:bg-blue-600:hover {
+  background-color: #2563EB !important;
+}
+
+/* Borders */
+html.dark .border-slate-100 {
+  border-color: #374151 !important;
+}
+
+html.dark .border-slate-100\/80 {
+  border-color: #374151 !important;
+}
+
+html.dark .border-slate-200 {
+  border-color: #374151 !important;
+}
+
+html.dark .border-slate-300 {
+  border-color: #4B5563 !important;
+}
+
+html.dark .border-white\/40 {
+  border-color: rgba(55, 65, 81, 0.4) !important;
+}
+
+html.dark .border-white\/20 {
+  border-color: rgba(55, 65, 81, 0.2) !important;
+}
+
+/* Text adaptations */
+html.dark .text-slate-900 {
+  color: #F9FAFB !important;
+}
+
+html.dark .text-slate-800 {
+  color: #F9FAFB !important;
+}
+
+html.dark .text-slate-700 {
+  color: #E5E7EB !important;
+}
+
+html.dark .text-slate-600 {
+  color: #9CA3AF !important;
+}
+
+html.dark .text-slate-500 {
+  color: #9CA3AF !important;
+}
+
+html.dark .text-slate-400 {
+  color: #9CA3AF !important;
+}
+
+html.dark .text-\[\#0D2A6B\] {
+  color: #3B82F6 !important;
+}
+
+/* Government / Capabilities Section text headers */
+html.dark .text-\[\#0066FF\] {
+  color: #3B82F6 !important;
+}
+
+/* Footer adaptation */
+html.dark footer {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+}
+
+html.dark footer .bg-slate-950 {
+  background-color: #0B1120 !important;
+  border-color: #374151 !important;
+}
+
+/* Form inputs & interactive fields */
+html.dark input, 
+html.dark textarea, 
+html.dark select {
+  background-color: #1F2937 !important;
+  color: #F9FAFB !important;
+  border-color: #374151 !important;
+}
+
+html.dark input::placeholder, 
+html.dark textarea::placeholder {
+  color: #6B7280 !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

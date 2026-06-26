@@ -1,0 +1,6 @@
+{
+  "name": "Healix",
+  "description": "Healix – AI Healthcare Assistant for Every Citizen",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

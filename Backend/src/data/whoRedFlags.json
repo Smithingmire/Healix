@@ -1,0 +1,25 @@
+{
+  "headache": {
+    "questions": [
+      "Do you have vision loss?",
+      "Do you have weakness?",
+      "Do you have confusion?",
+      "Do you have speech difficulty?"
+    ]
+  },
+
+  "fever": {
+    "questions": [
+      "Are you having breathing difficulty?",
+      "Are you unconscious?",
+      "Are you having seizures?"
+    ]
+  },
+
+  "cough": {
+    "questions": [
+      "Are you coughing blood?",
+      "Are you having breathing difficulty?"
+    ]
+  }
+}
