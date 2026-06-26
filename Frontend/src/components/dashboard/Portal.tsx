@@ -16,14 +16,14 @@ import GovtSchemes from "../features/GovtSchemes";
 import HealthcareFinder from "../features/HealthcareFinder";
 import ProfileSettings from "../features/ProfileSettings";
 import MisinfoDetector from "../features/MisinfoDetector";
-import WhatsappBot from "../features/WhatsappBot";
+
 
 interface PortalProps {
   onLogout: () => void;
   user: UserSession | null;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
-  activeTab: "chat" | "report-saver" | "schemes" | "resources" | "misinformation" | "profile" | "whatsapp-bot";
+  activeTab: "chat" | "report-saver" | "schemes" | "resources" | "misinformation" | "profile";
 }
 
 // Sub-interfaces for Report Saver
@@ -1306,7 +1306,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
                 {activeTab === "resources" && `📍 ${t.resourcesTabTitle}`}
                 {activeTab === "misinformation" && `🛡️ ${t.misinfoTabTitle}`}
                 {activeTab === "profile" && `⚙️ ${t.profileTabTitle}`}
-                {activeTab === "whatsapp-bot" && `📞 ${t.whatsappBotTabTitle}`}
+
               </span>
             </div>
           </div>
@@ -1467,10 +1467,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
             />
           )}
 
-          {/* TAB G: WHATSAPP BOT COMPANION */}
-          {activeTab === "whatsapp-bot" && (
-            <WhatsappBot t={t} />
-          )}
+
         </div>
       </div>
     </div>

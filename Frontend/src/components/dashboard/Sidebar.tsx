@@ -32,7 +32,7 @@ interface SidebarProps {
   userProfile: UserSession;
   currentLang: string;
   t: TranslationSet;
-  activeTab: "chat" | "report-saver" | "schemes" | "resources" | "misinformation" | "profile" | "whatsapp-bot";
+  activeTab: "chat" | "report-saver" | "schemes" | "resources" | "misinformation" | "profile";
   isSidebarOpen: boolean;
   setIsSidebarOpen: (b: boolean) => void;
   isSidebarMinimized: boolean;
@@ -257,21 +257,7 @@ export default function Sidebar({
                   <FileText className="h-4 w-4 shrink-0" />
                 </button>
 
-                {/* 📞 WhatsApp Bot Option */}
-                <button
-                  onClick={() => {
-                    navigateTab("/portal/whatsapp");
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`p-2 rounded-lg flex items-center justify-center transition cursor-pointer ${
-                    activeTab === "whatsapp-bot" 
-                      ? "bg-emerald-600 text-white shadow-xs" 
-                      : "text-slate-600 dark:text-[#9CA3AF] hover:bg-slate-100 dark:hover:bg-[#1F2937] hover:text-slate-800 dark:hover:text-[#F9FAFB]"
-                  }`}
-                  title={t.whatsappBot}
-                >
-                  <Phone className="h-4 w-4 shrink-0" />
-                </button>
+
 
                 {/* ⚙️ Profile & Settings Option */}
                 <button
@@ -386,24 +372,7 @@ export default function Sidebar({
                   {!isSidebarMinimized && <span className="truncate">{t.reportSaver}</span>}
                 </button>
 
-                {/* 📞 WhatsApp Bot Option */}
-                <button
-                  onClick={() => {
-                    navigateTab("/portal/whatsapp");
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`w-full text-left rounded-xl flex items-center gap-3 transition font-semibold text-xs cursor-pointer ${
-                    isSidebarMinimized ? "justify-center p-3" : "px-3.5 py-3"
-                  } ${
-                    activeTab === "whatsapp-bot" 
-                      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-l-4 border-emerald-600 dark:border-emerald-400" 
-                      : "text-slate-600 dark:text-[#9CA3AF] hover:bg-slate-50 dark:hover:bg-[#1F2937] hover:text-slate-800 dark:hover:text-[#F9FAFB]"
-                  }`}
-                  title={t.whatsappBot}
-                >
-                  <Phone className="h-4.5 w-4.5 shrink-0" />
-                  {!isSidebarMinimized && <span className="truncate">{t.whatsappBot}</span>}
-                </button>
+
 
                 {/* ⚙️ Profile & Settings Option */}
                 <button

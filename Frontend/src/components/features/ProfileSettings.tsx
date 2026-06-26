@@ -127,7 +127,36 @@ export default function ProfileSettings({
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800 pt-5 text-xs">
             <div>
               <span className="text-[10px] font-bold text-slate-400">Pincode / Zone</span>
-              <p className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{userProfile.pincode}</p>
+              <input
+                type="text"
+                value={currentUser?.pincode || ""}
+                maxLength={6}
+                onChange={(e) => {
+                  if (currentUser) {
+                    const newPin = e.target.value;
+                    const updatedUser = { ...currentUser, pincode: newPin };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem("healix_active_user", JSON.stringify(updatedUser));
+                    
+                    // Also update in registered users database to persist across logins
+                    const rawUsers = localStorage.getItem("healix_registered_users");
+                    if (rawUsers) {
+                      try {
+                        const parsed = JSON.parse(rawUsers);
+                        if (Array.isArray(parsed)) {
+                          const updatedList = parsed.map(u => 
+                            (u.email === currentUser.email || u.phone === currentUser.phone)
+                              ? { ...u, pincode: newPin }
+                              : u
+                          );
+                          localStorage.setItem("healix_registered_users", JSON.stringify(updatedList));
+                        }
+                      } catch (err) {}
+                    }
+                  }
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              />
             </div>
             <div>
               <span className="text-[10px] font-bold text-slate-400">Registered City</span>

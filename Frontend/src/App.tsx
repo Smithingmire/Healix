@@ -164,25 +164,6 @@ function AppRoutes({
           )
         } 
       />
-      <Route 
-        path="/portal/whatsapp" 
-        element={
-          user ? (
-            <Portal 
-              activeTab="whatsapp-bot"
-              onLogout={() => {
-                handleLogout();
-                navigate("/login");
-              }} 
-              user={user} 
-              theme={theme} 
-              onThemeChange={handleThemeChange} 
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        } 
-      />
       {/* Fallback routing */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

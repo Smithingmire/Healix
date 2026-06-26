@@ -12,12 +12,10 @@ const awarenessRoutes = require("./src/routes/awarenessRoutes");
 const chatRoutes = require("./src/routes/chatRoutes");
 const misinfoRoutes = require("./src/routes/misinfoRoutes");
 const placesRoutes = require("./src/routes/placesRoutes");
-const whatsappRoutes = require("./src/routes/whatsappRoutes");
-const whatsappService = require("./src/services/whatsappService");
 
 const app = express();
 
-// connectDB();
+connectDB();
 
 app.use(cors());
 app.use(express.json());
@@ -29,7 +27,6 @@ app.use("/api/awareness", awarenessRoutes);
 app.use("/api/healix/chat", chatRoutes);
 app.use("/api/healix/misinfo", misinfoRoutes);
 app.use("/api/healix/places", placesRoutes);
-app.use("/api/healix/whatsapp", whatsappRoutes);
 
 app.get("/", (req, res) => {
   res.json({
@@ -42,7 +39,6 @@ const PORT = process.env.PORT || 5001;
 
 const server = app.listen(PORT, () => {
   console.log(`Server Running On Port ${PORT}`);
-  whatsappService.initializeWhatsApp();
 });
 
 // Graceful shutdown - ensures port is released when nodemon restarts
@@ -54,5 +50,4 @@ const shutdown = () => {
 
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
-// Trigger reload
 

@@ -230,7 +230,7 @@ export default function LandingPage({ onLogin, theme, onThemeChange }: LandingPa
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-slate-500 dark:text-slate-300 text-base sm:text-lg font-normal leading-relaxed mt-4 max-w-xl"
             >
-              Healix brings trusted medical guidance, symptom analysis, and government scheme support directly into the hands of every citizen — through voice, text, and WhatsApp, in your own language.
+              Healix brings trusted medical guidance, symptom analysis, and government scheme support directly into the hands of every citizen — through voice and text, in your own language.
             </motion.p>
 
             {/* Buttons */}
@@ -314,10 +314,10 @@ export default function LandingPage({ onLogin, theme, onThemeChange }: LandingPa
               <span className="text-xs font-bold text-blue-400 font-mono tracking-tight group-hover:text-[#0066FF] dark:group-hover:text-blue-400 transition-colors">02</span>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
-                  Multilingual Voice & WhatsApp
+                  Multilingual Voice Assistant
                 </h3>
                 <p className="text-slate-600 dark:text-slate-300 text-xs mt-2 leading-relaxed">
-                  Talk or type in regional Indian languages on WhatsApp or the web — designed for elderly, rural, and low-literacy users.
+                  Talk or type in regional Indian languages directly on the web — designed for elderly, rural, and low-literacy users.
                 </p>
               </div>
             </div>
@@ -361,18 +361,7 @@ export default function LandingPage({ onLogin, theme, onThemeChange }: LandingPa
               </div>
             </div>
 
-            {/* Card 06 */}
-            <div className="bg-white dark:bg-[#1F2937] border border-slate-100 dark:border-slate-700/80 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-emerald-250 hover:bg-gradient-to-br hover:from-emerald-50/30 hover:to-white dark:hover:from-[#1F2937] dark:hover:to-[#111827] transition-all duration-300 flex flex-col justify-between gap-8 group">
-              <span className="text-xs font-bold text-emerald-400 font-mono tracking-tight group-hover:text-emerald-500 transition-colors">06</span>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
-                  WhatsApp AI Companion
-                </h3>
-                <p className="text-slate-600 dark:text-slate-300 text-xs mt-2 leading-relaxed">
-                  Link your personal WhatsApp number with one scan. Check symptoms and receive general guidance directly in chat.
-                </p>
-              </div>
-            </div>
+
 
           </div>
 

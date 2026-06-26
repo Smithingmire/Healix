@@ -21,6 +21,7 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regLocation, setRegLocation] = useState("");
+  const [regPincode, setRegPincode] = useState("");
   const [regLanguage, setRegLanguage] = useState("English");
   const [regLatitude, setRegLatitude] = useState<number | null>(null);
   const [regLongitude, setRegLongitude] = useState<number | null>(null);
@@ -78,7 +79,7 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!regName || !regPhone || !regLocation || !regEmail || !regPassword) return;
+    if (!regName || !regPhone || !regLocation || !regPincode || !regEmail || !regPassword) return;
 
     if (!regAcceptedTerms) {
       setError("You must accept the terms and conditions");
@@ -104,7 +105,7 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
     const newUser: UserSession = {
       name: regName,
       phone: regPhone,
-      pincode: "000000",
+      pincode: regPincode || "400001",
       age: 38,
       gender: "Male",
       location: regLocation,
@@ -357,6 +358,22 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
                   </div>
                 </div>
 
+                {/* Pincode */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase">Pincode</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={regPincode}
+                      onChange={(e) => setRegPincode(e.target.value)}
+                      placeholder="e.g. 400001"
+                      required
+                      maxLength={6}
+                      className="w-full bg-white/70 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-[#1E88E5] transition font-medium"
+                    />
+                  </div>
+                </div>
+
                 {/* Terms and conditions Checkbox */}
                 <div className="flex items-start gap-2 mt-2">
                   <input
@@ -374,7 +391,7 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
 
                 <button
                   type="submit"
-                  disabled={!regName || regPhone.length < 10 || !regLocation || !regEmail || !regPassword || !regAcceptedTerms}
+                  disabled={!regName || regPhone.length < 10 || !regLocation || !regPincode || !regEmail || !regPassword || !regAcceptedTerms}
                   className="w-full bg-[#1E88E5] hover:bg-blue-600 disabled:bg-slate-300 disabled:text-slate-400 text-white text-xs font-bold py-3 rounded-xl shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition cursor-pointer mt-2"
                 >
                   Create Account & Login

@@ -92,8 +92,7 @@ export interface TranslationSet {
   resultEligible: string;
   resultNotEligible: string;
   viewDetails: string;
-  whatsappBot: string;
-  whatsappBotTabTitle: string;
+
 }
 
 export const languages = [
@@ -260,8 +259,7 @@ export const translations: Record<string, TranslationSet> = {
     resultEligible: "Recommended Eligible Schemes",
     resultNotEligible: "No special matching schemes found for this income bracket. PM-JAY and ABHA are still applicable.",
     viewDetails: "View Details",
-    whatsappBot: "WhatsApp Bot",
-    whatsappBotTabTitle: "Healix WhatsApp Companion"
+
   },
   hi: {
     appTitle: "हीलिक्स (Healix)",
@@ -420,7 +418,6 @@ export const translations: Record<string, TranslationSet> = {
     resultEligible: "अनुशंसित पात्र योजनाएं",
     resultNotEligible: "इस आय वर्ग के लिए कोई विशेष योजना नहीं मिली। पीएम-जय और आभा अभी भी लागू हैं।",
     viewDetails: "विवरण देखें",
-    whatsappBot: "व्हाट्सएप बोट",
-    whatsappBotTabTitle: "हीलिक्स व्हाट्सएप साथी"
+
   }
 };
