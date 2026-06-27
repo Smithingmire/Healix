@@ -53,30 +53,32 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
     setError(null);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!loginEmail || !loginPassword) return;
     
-    // Retrieve registered users database from localStorage
-    const savedUsersRaw = localStorage.getItem("healix_registered_users");
-    const savedUsers: UserSession[] = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
-    
-    // Match with registered users
-    const matchedUser = savedUsers.find(
-      u => u.email?.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPassword
-    );
-
-    if (matchedUser) {
-      const activeLang = (matchedUser.language && (matchedUser.language.toLowerCase().includes("hind") || matchedUser.language === "Hindi")) ? "hi" : "en";
-      localStorage.setItem("healix_active_language", activeLang);
-      onLoginSuccess(matchedUser);
-    } else {
-      setError("Invalid email or password");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginEmail, loginPassword })
+      });
+      const data = await response.json();
+      if (data.success) {
+        const matchedUser = data.user;
+        const activeLang = (matchedUser.language && (matchedUser.language.toLowerCase().includes("hind") || matchedUser.language === "Hindi")) ? "hi" : "en";
+        localStorage.setItem("healix_active_language", activeLang);
+        onLoginSuccess(matchedUser);
+      } else {
+        setError(data.error || "Invalid email or password");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to contact authorization server.");
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!regName || !regPhone || !regLocation || !regPincode || !regEmail || !regPassword) return;
@@ -86,47 +88,41 @@ export default function LoginScreen({ onLoginSuccess, onBack, theme, onThemeChan
       return;
     }
     
-    // Retrieve registered users database from localStorage
-    const savedUsersRaw = localStorage.getItem("healix_registered_users");
-    const savedUsers: UserSession[] = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
-
-    // Check for duplicate email or phone
-    const emailExists = savedUsers.some(u => u.email?.toLowerCase() === regEmail.toLowerCase());
-    const phoneExists = savedUsers.some(u => u.phone === regPhone);
-    if (emailExists) {
-      setError("This email is already registered");
-      return;
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: regName,
+          phone: regPhone,
+          pincode: regPincode || "400001",
+          age: 38,
+          gender: "Male",
+          location: regLocation,
+          language: regLanguage,
+          email: regEmail,
+          password: regPassword,
+          latitude: regLatitude || 19.0760,
+          longitude: regLongitude || 72.8777
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        const newUser = data.user;
+        const activeLang = (regLanguage.toLowerCase().includes("hind") || regLanguage === "Hindi") ? "hi" : "en";
+        localStorage.setItem("healix_active_language", activeLang);
+        onLoginSuccess(newUser);
+      } else {
+        setError(data.error || "Registration failed.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to contact authorization server.");
     }
-    if (phoneExists) {
-      setError("This phone number is already registered");
-      return;
-    }
-
-    const newUser: UserSession = {
-      name: regName,
-      phone: regPhone,
-      pincode: regPincode || "400001",
-      age: 38,
-      gender: "Male",
-      location: regLocation,
-      language: regLanguage,
-      email: regEmail,
-      password: regPassword,
-      latitude: regLatitude || 19.0760, // Fallback Mumbai lat
-      longitude: regLongitude || 72.8777 // Fallback Mumbai lng
-    };
-
-    const updatedUsers = [newUser, ...savedUsers];
-    localStorage.setItem("healix_registered_users", JSON.stringify(updatedUsers));
-
-    const activeLang = (regLanguage.toLowerCase().includes("hind") || regLanguage === "Hindi") ? "hi" : "en";
-    localStorage.setItem("healix_active_language", activeLang);
-    onLoginSuccess(newUser);
   };
 
 
   return (
-    <div className="relative min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] flex items-center justify-center p-6 overflow-hidden font-sans select-none transition-colors duration-200">
+    <div className="relative min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] flex items-center justify-center p-6 overflow-y-auto font-sans select-none transition-colors duration-200">
       
       {/* Floating Theme Switcher */}
       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">

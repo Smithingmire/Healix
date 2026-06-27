@@ -217,7 +217,6 @@ export default function MisinfoDetector({
                     type="button"
                     onClick={() => {
                       setMisinfoHistory([]);
-                      localStorage.removeItem("healix_misinfo_history");
                     }}
                     className="text-[10px] text-red-500 hover:text-red-750 dark:hover:text-red-400 font-bold transition flex items-center gap-1 cursor-pointer border-none bg-transparent"
                   >

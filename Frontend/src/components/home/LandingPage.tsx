@@ -24,62 +24,68 @@ export default function LandingPage({ onLogin, theme, onThemeChange }: LandingPa
 
   // Load registered count & feedbacks
   useEffect(() => {
-    // Registered count
-    const rawUsers = localStorage.getItem("healix_registered_users");
-    if (rawUsers) {
+    // Registered count from MongoDB
+    const fetchCount = async () => {
       try {
-        const parsed = JSON.parse(rawUsers);
-        if (Array.isArray(parsed)) {
-          setRegisteredUsersCount(parsed.length);
+        const response = await fetch("/api/auth/count");
+        const data = await response.json();
+        if (data.success) {
+          setRegisteredUsersCount(data.count);
         }
-      } catch (e) {}
-    }
+      } catch (e) {
+        console.error("Failed to fetch user count from MongoDB:", e);
+      }
+    };
 
-    // Feedbacks list
-    const rawFeedbacks = localStorage.getItem("healix_feedbacks");
-    if (rawFeedbacks) {
+    // Feedbacks list from MongoDB
+    const fetchFeedbacks = async () => {
       try {
-        const parsed = JSON.parse(rawFeedbacks);
-        if (Array.isArray(parsed)) {
-          setFeedbacks(parsed);
+        const response = await fetch("/api/healix/feedback");
+        const data = await response.json();
+        if (data.success && Array.isArray(data.feedbacks)) {
+          setFeedbacks(data.feedbacks);
         }
-      } catch (e) {}
-    }
+      } catch (e) {
+        console.error("Failed to fetch feedbacks from MongoDB:", e);
+      }
+    };
+
+    fetchCount();
+    fetchFeedbacks();
   }, []);
 
-  const handleFeedbackSubmit = (e: React.FormEvent) => {
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedbackSuccess("");
     setFeedbackError("");
 
     if (!feedbackName || !feedbackEmailOrPhone || !feedbackComment) return;
 
-    // Check if duplicate feedback exists
-    const exists = feedbacks.some(
-      (f) => f.emailOrPhone.toLowerCase() === feedbackEmailOrPhone.toLowerCase()
-    );
-
-    if (exists) {
-      setFeedbackError("You have already submitted feedback once.");
-      return;
+    try {
+      const response = await fetch("/api/healix/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: feedbackName,
+          emailOrPhone: feedbackEmailOrPhone,
+          rating: feedbackRating,
+          comment: feedbackComment
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setFeedbacks(prev => [data.feedback, ...prev]);
+        setFeedbackSuccess("Thank you! Your feedback has been saved.");
+        setFeedbackComment("");
+        setFeedbackName("");
+        setFeedbackEmailOrPhone("");
+        setFeedbackRating(5);
+      } else {
+        setFeedbackError(data.error || "You have already submitted feedback once.");
+      }
+    } catch (err: any) {
+      setFeedbackError(err.message || "Failed to submit feedback.");
     }
-
-    const newFeedback = {
-      emailOrPhone: feedbackEmailOrPhone,
-      rating: feedbackRating,
-      comment: feedbackComment,
-      userName: feedbackName,
-      date: new Date().toLocaleDateString()
-    };
-
-    const updated = [newFeedback, ...feedbacks];
-    setFeedbacks(updated);
-    localStorage.setItem("healix_feedbacks", JSON.stringify(updated));
-    setFeedbackSuccess("Thank you! Your feedback has been saved.");
-    setFeedbackComment("");
-    setFeedbackName("");
-    setFeedbackEmailOrPhone("");
-    setFeedbackRating(5);
   };
 
   // Smooth scroll to features

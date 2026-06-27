@@ -18,6 +18,9 @@ interface HealthcareFinderProps {
   t: TranslationSet;
   isTrackingLocation: boolean;
   setIsTrackingLocation: (b: boolean) => void;
+  isLocationLoading: boolean;
+  locationErrorMessage: string | null;
+  requestGPSLocation: () => void;
   citySearchStatus: string;
   manualCityInput: string;
   setManualCityInput: (s: string) => void;
@@ -39,6 +42,9 @@ export default function HealthcareFinder({
   t,
   isTrackingLocation,
   setIsTrackingLocation,
+  isLocationLoading,
+  locationErrorMessage,
+  requestGPSLocation,
   citySearchStatus,
   manualCityInput,
   setManualCityInput,
@@ -56,10 +62,10 @@ export default function HealthcareFinder({
   setShowPhoneNumber
 }: HealthcareFinderProps) {
   return (
-    <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-full">
+    <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden h-auto md:h-full">
       
       {/* Left Column: Resource categories and listings */}
-      <div className="w-full md:w-5/12 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-white dark:bg-slate-900">
+      <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col h-auto md:h-full bg-white dark:bg-slate-900 shrink-0">
         
         {/* Category selector */}
         <div className="p-4 border-b border-slate-150 dark:border-slate-800/80 space-y-3 shrink-0">
@@ -67,22 +73,31 @@ export default function HealthcareFinder({
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.nearbyResources}</span>
             <button
               type="button"
-              onClick={() => setIsTrackingLocation(!isTrackingLocation)}
+              disabled={isLocationLoading}
+              onClick={requestGPSLocation}
               className={`px-3 py-1 rounded-full text-[10px] font-bold transition flex items-center gap-1.5 cursor-pointer border-none ${
-                isTrackingLocation 
-                  ? "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 border border-green-200" 
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                isLocationLoading
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 border border-blue-200 animate-pulse"
+                  : isTrackingLocation && !locationErrorMessage
+                    ? "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 border border-green-200" 
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
               }`}
             >
-              <MapPin className={`h-3 w-3 ${isTrackingLocation ? "animate-pulse" : ""}`} />
-              <span>{isTrackingLocation ? "Live GPS Active" : "Track Live Location"}</span>
+              <MapPin className={`h-3 w-3 ${isLocationLoading ? "animate-spin" : isTrackingLocation && !locationErrorMessage ? "animate-pulse" : ""}`} />
+              <span>
+                {isLocationLoading 
+                  ? "Acquiring GPS..." 
+                  : isTrackingLocation && !locationErrorMessage 
+                    ? "Live GPS Active" 
+                    : "Track Live Location"}
+              </span>
             </button>
           </div>
           
-          {/* Manual City Search Override */}
+          {/* Manual City/Pincode Search Override */}
           <div className="bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-150 dark:border-slate-850 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Set Location by City:</span>
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Set Location (City or Pincode):</span>
               {citySearchStatus && (
                 <span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold animate-pulse">{citySearchStatus}</span>
               )}
@@ -90,7 +105,7 @@ export default function HealthcareFinder({
             <div className="flex gap-1.5">
               <input
                 type="text"
-                placeholder="Enter City (e.g., Pune, Delhi, Mumbai)..."
+                placeholder="Enter City or 6-digit Pincode (e.g., Pune, 411001)..."
                 value={manualCityInput}
                 onChange={(e) => setManualCityInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -111,7 +126,7 @@ export default function HealthcareFinder({
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
             {["Hospitals", "Government Hospitals", "Primary Health Centers (PHC)", "Community Health Centers", "Emergency Services", "Ambulance Services", "Blood Banks", "Pharmacies"].map(cat => (
               <button
                 key={cat}
@@ -134,8 +149,18 @@ export default function HealthcareFinder({
         </div>
 
         {/* Resource List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-          {currentCategoryResources.length === 0 ? (
+        <div className="flex-1 max-h-[280px] md:max-h-none overflow-y-auto p-4 space-y-3 no-scrollbar">
+          {locationErrorMessage ? (
+            <div className="bg-rose-50 border border-rose-200 dark:bg-rose-950/20 dark:border-rose-900/40 p-4 rounded-2xl text-center space-y-2 shadow-xs">
+              <span className="text-xl">📍</span>
+              <p className="text-xs font-bold text-rose-700 dark:text-rose-400">
+                {locationErrorMessage}
+              </p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Please enable location access in your browser or device settings.
+              </p>
+            </div>
+          ) : currentCategoryResources.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-400">No resources found nearby.</div>
           ) : (
             currentCategoryResources.map(res => (
@@ -169,7 +194,7 @@ export default function HealthcareFinder({
       </div>
 
       {/* Right Column: Interactive Map & Details card */}
-      <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-[#0B0F19]">
+      <div className="flex-1 flex flex-col h-auto md:h-full bg-slate-50 dark:bg-[#0B0F19] min-h-[450px] md:min-h-0">
         
         {/* 🗺️ INTERACTIVE MAP COMPONENT (SVG-based with pathing!) */}
         <div className="flex-1 relative min-h-[300px] overflow-hidden">

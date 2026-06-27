@@ -1,5 +1,10 @@
 import React, { FormEvent, RefObject } from "react";
-import { Send, Mic, MicOff, Volume2, Play, Pause, Square } from "lucide-react";
+import { 
+  Send, Mic, MicOff, Volume2, Play, Pause, Square,
+  Activity, Heart, Shield, Clock, Phone, Stethoscope, 
+  RefreshCw, BookOpen, AlertOctagon, CheckCircle2, 
+  XCircle, HelpCircle, MapPin 
+} from "lucide-react";
 import { Message, UserSession } from "../../types";
 import { TranslationSet } from "../translations";
 
@@ -24,6 +29,314 @@ interface ChatAssistantProps {
   resumeVoice: () => void;
   stopVoice: () => void;
   cleanChatSymbols: (text: string) => string;
+  onNavigateResources?: () => void;
+  onNavigateSchemes?: () => void;
+  onNavigateEmergencyServices?: () => void;
+}
+
+const reportHeaders = {
+  en: {
+    symptomSummary: "Symptom Summary",
+    possibleConditions: "💡 Possible Causes (General Only)",
+    selfCare: "🧾 What You Should Do Now",
+    recoveryTimeline: "Expected Recovery Timeline",
+    emergencyWarning: "🚨 Emergency Warning Signs",
+    medicationInfo: "Medication Information",
+    preventionTips: "Prevention Tips",
+    actionFindHospitals: "Find Nearby Hospitals",
+    actionCallEmergency: "Call Emergency Services",
+    actionCheckSymptom: "Check Another Symptom",
+    actionLearnMore: "Learn More about Schemes"
+  },
+  hi: {
+    symptomSummary: "लक्षणों का सारांश",
+    possibleConditions: "💡 संभावित कारण (केवल सामान्य)",
+    selfCare: "🧾 आपको अब क्या करना चाहिए",
+    recoveryTimeline: "संभावित सुधार समयरेखा",
+    emergencyWarning: "🚨 आपातकालीन चेतावनी संकेत",
+    medicationInfo: "दवा संबंधी जानकारी",
+    preventionTips: "बचाव के उपाय",
+    actionFindHospitals: "नजदीकी अस्पताल खोजें",
+    actionCallEmergency: "आपातकालीन सेवा को कॉल करें",
+    actionCheckSymptom: "एक और लक्षण जांचें",
+    actionLearnMore: "योजनाओं के बारे में और जानें"
+  }
+};
+
+function HealthReportView({ 
+  report, 
+  currentLang, 
+  onNavigateResources, 
+  onNavigateSchemes, 
+  onNavigateEmergencyServices,
+  setChatInput 
+}: { 
+  report: any; 
+  currentLang: string; 
+  onNavigateResources?: () => void; 
+  onNavigateSchemes?: () => void; 
+  onNavigateEmergencyServices?: () => void;
+  setChatInput: (s: string) => void 
+}) {
+  const headers = reportHeaders[currentLang as "en" | "hi"] || reportHeaders.en;
+  
+  let cardBorder = "border-emerald-500/20 dark:border-emerald-500/10";
+  let cardGlow = "shadow-emerald-500/5";
+  let concernText = "text-emerald-600 dark:text-emerald-450";
+  let concernBg = "bg-emerald-50 dark:bg-emerald-950/20";
+  
+  if (report.concernLevel === "medium") {
+    cardBorder = "border-amber-500/20 dark:border-amber-500/10";
+    cardGlow = "shadow-amber-500/5";
+    concernText = "text-amber-600 dark:text-amber-400";
+    concernBg = "bg-amber-50 dark:bg-amber-950/20";
+  } else if (report.concernLevel === "high") {
+    cardBorder = "border-rose-500/20 dark:border-rose-500/10";
+    cardGlow = "shadow-rose-500/5";
+    concernText = "text-rose-600 dark:text-rose-450";
+    concernBg = "bg-rose-50 dark:bg-rose-950/20";
+  }
+
+  return (
+    <div className={`w-full max-w-2xl bg-white dark:bg-[#1E293B] rounded-2xl border ${cardBorder} shadow-lg ${cardGlow} p-5 space-y-6 text-slate-800 dark:text-[#F9FAFB] transition-all duration-300 ease-in-out`}>
+      
+      {/* 👋 Greeting & concern card */}
+      <div className={`${concernBg} border border-transparent rounded-2xl p-4.5 space-y-4`}>
+        <h2 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5 leading-snug">
+          <span>👋</span> {report.greeting}
+        </h2>
+        
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-xs font-extrabold">
+            <span className="text-slate-700 dark:text-slate-300">🩺 {currentLang === "hi" ? "ट्राइएज स्तर:" : "Triage Level:"}</span>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase shadow-sm ${concernText} bg-white dark:bg-[#0F172A]`}>
+              {report.concernBadge}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="text-xs font-extrabold text-slate-755 dark:text-slate-250 flex items-center gap-1">
+            📌 {currentLang === "hi" ? "कारण" : "Reasoning"}
+          </h3>
+          <p className="text-xs leading-relaxed text-slate-650 dark:text-slate-350 font-medium">
+            {report.concernExplanation}
+          </p>
+        </div>
+      </div>
+
+      {/* 📊 Symptom Summary */}
+      {report.symptoms && report.symptoms.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+            <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <h3>{headers.symptomSummary}</h3>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {report.symptoms.map((sym: any, idx: number) => {
+              let badgeStyle = "bg-slate-50 text-slate-600 border border-slate-200/60 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-800";
+              let icon = <HelpCircle className="h-3.5 w-3.5 shrink-0 text-slate-400" />;
+              if (sym.status === "present") {
+                badgeStyle = "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-850";
+                icon = <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />;
+              } else if (sym.status === "absent") {
+                badgeStyle = "bg-slate-100/60 text-slate-400 border border-slate-200/40 line-through dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-800/80";
+                icon = <XCircle className="h-3.5 w-3.5 shrink-0 text-slate-400" />;
+              }
+              return (
+                <span key={idx} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wide shadow-2xs transition duration-150 ${badgeStyle}`}>
+                  {icon}
+                  {sym.name}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 🧠 Possible Conditions */}
+      {report.conditions && report.conditions.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+            <Heart className="h-4 w-4 text-rose-500 dark:text-rose-450 animate-pulse" />
+            <h3>{headers.possibleConditions}</h3>
+          </div>
+          <div className="space-y-3.5 pt-1.5">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium italic">
+              {currentLang === "hi" ? "आपके लक्षणों के आधार पर ये स्थितियां संबंधित हो सकती हैं:" : "Based on your symptoms, these conditions could be related:"}
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {report.conditions.map((cond: any, idx: number) => (
+                <span key={idx} className="inline-flex items-center px-3 py-1.5 rounded-xl text-[11px] font-bold bg-slate-55/60 text-slate-700 border border-slate-200/60 dark:bg-slate-800/30 dark:text-slate-350 dark:border-slate-800 shadow-2xs">
+                  🔹 {cond.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💡 Recommended Self-Care */}
+      {report.selfCare && report.selfCare.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+            <Shield className="h-4 w-4 text-emerald-500 dark:text-emerald-450" />
+            <h3>{headers.selfCare}</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+            {report.selfCare.map((item: string, idx: number) => (
+              <div key={idx} className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 shadow-2xs hover:shadow-xs transition duration-150 flex items-start gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400 text-xs">
+                  ✨
+                </div>
+                <p className="text-[11px] text-slate-650 dark:text-slate-350 leading-relaxed font-semibold">
+                  {item}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📅 Expected Recovery Timeline */}
+      {report.timeline && report.timeline.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+            <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+            <h3>{headers.recoveryTimeline}</h3>
+          </div>
+          <div className="space-y-4 relative pl-4 border-l border-slate-200 dark:border-slate-800 mt-3 ml-2.5">
+            {report.timeline.map((item: any, idx: number) => (
+              <div key={idx} className="relative space-y-1">
+                <div className="absolute -left-[21.5px] top-1 h-3 w-3 rounded-full bg-blue-500 dark:bg-blue-400 border-2 border-white dark:border-[#1E293B]"></div>
+                <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200">{item.phase}</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🚨 Emergency Warning Signs */}
+      {report.emergencyWarnings && report.emergencyWarnings.length > 0 && (
+        <div className="border border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/10 p-4.5 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2 text-rose-700 dark:text-rose-450 font-extrabold text-xs">
+            <AlertOctagon className="h-4.5 w-4.5 shrink-0 text-rose-650 dark:text-rose-450" />
+            <h3>{headers.emergencyWarning}</h3>
+          </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-0.5">
+            {report.emergencyWarnings.map((item: string, idx: number) => (
+              <li key={idx} className="text-[11px] text-rose-950 dark:text-rose-300 flex items-start gap-2 leading-relaxed bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-xl border border-rose-100/50 dark:border-rose-950/40 shadow-2xs font-semibold">
+                <span className="text-rose-500">🚨</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold italic pt-1 flex items-center gap-1.5 leading-snug">
+            ⚠️ {currentLang === "hi" ? "यदि इनमें से कोई भी लक्षण दिखाई दे तो तुरंत चिकित्सीय सहायता लें।" : "Seek professional medical care immediately if any of these symptoms occur."}
+          </p>
+        </div>
+      )}
+
+      {/* 💊 Medication Information */}
+      <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/60 space-y-1.5">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+          <Stethoscope className="h-4.5 w-4.5 text-blue-600 dark:text-blue-450" />
+          <h3>{headers.medicationInfo}</h3>
+        </div>
+        <p className="text-[11px] text-slate-550 dark:text-slate-400 leading-relaxed font-semibold italic">
+          {report.medicationStatement}
+        </p>
+      </div>
+
+      {/* 🛡 Prevention Tips */}
+      {report.preventionTips && report.preventionTips.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+            <Shield className="h-4 w-4 text-emerald-500" />
+            <h3>{headers.preventionTips}</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+            {report.preventionTips.map((item: string, idx: number) => (
+              <div key={idx} className="flex items-start gap-2.5 bg-slate-50/50 dark:bg-slate-800/20 px-3 py-2.5 rounded-xl border border-slate-100/60 dark:border-slate-800/40">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-slate-650 dark:text-slate-350 leading-relaxed font-semibold">
+                  {item}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ❤️ Recovery Footer */}
+      <div className="bg-blue-50/30 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100/30 dark:border-blue-900/30 text-center">
+        <p className="text-[11px] text-blue-700 dark:text-blue-400 font-bold leading-relaxed">
+          {report.reassuranceMessage}
+        </p>
+      </div>
+
+      {/* ⚠️ Disclaimer at the end of response */}
+      <div className="pt-3 border-t border-slate-200/40 dark:border-slate-800/40">
+        <p className="text-[10.5px] text-slate-450 dark:text-slate-500 italic font-medium leading-relaxed">
+          ⚠️ <strong>{currentLang === "hi" ? "अस्वीकरण:" : "Disclaimer:"}</strong> {report.disclaimer}
+        </p>
+      </div>
+
+      {/* Interactive Actions CTA Footer */}
+      <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-200 dark:border-slate-800 justify-end">
+        {onNavigateResources && (
+          <button
+            onClick={onNavigateResources}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold shadow-sm shadow-blue-500/20 hover:shadow-md transition cursor-pointer"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            {headers.actionFindHospitals}
+          </button>
+        )}
+        {onNavigateEmergencyServices ? (
+          <button
+            onClick={onNavigateEmergencyServices}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold shadow-sm shadow-rose-500/20 hover:shadow-md transition cursor-pointer"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {headers.actionCallEmergency}
+          </button>
+        ) : (
+          <a
+            href="tel:108"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold shadow-sm shadow-rose-500/20 hover:shadow-md transition cursor-pointer"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {headers.actionCallEmergency}
+          </a>
+        )}
+        <button
+          onClick={() => {
+            setChatInput("");
+            const textarea = document.querySelector('textarea');
+            if (textarea) {
+              (textarea as HTMLTextAreaElement).focus();
+            }
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-[11px] font-extrabold transition cursor-pointer"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          {headers.actionCheckSymptom}
+        </button>
+        {onNavigateSchemes && (
+          <button
+            onClick={onNavigateSchemes}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-[11px] font-extrabold transition cursor-pointer"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            {headers.actionLearnMore}
+          </button>
+        )}
+      </div>
+
+    </div>
+  );
 }
 
 export default function ChatAssistant({
@@ -46,7 +359,10 @@ export default function ChatAssistant({
   pauseVoice,
   resumeVoice,
   stopVoice,
-  cleanChatSymbols
+  cleanChatSymbols,
+  onNavigateResources,
+  onNavigateSchemes,
+  onNavigateEmergencyServices
 }: ChatAssistantProps) {
   const getInitials = (name: string) => {
     if (!name) return "U";
@@ -55,6 +371,45 @@ export default function ChatAssistant({
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return parts[0].slice(0, 2).toUpperCase();
+  };
+
+  const renderModelMessage = (msg: Message) => {
+    let reportData: any = null;
+    let isHealthReport = false;
+
+    try {
+      if (msg.content && msg.content.trim().startsWith("{") && msg.content.trim().endsWith("}")) {
+        reportData = JSON.parse(msg.content);
+        if (reportData && reportData.isHealthReport) {
+          isHealthReport = true;
+        }
+      }
+    } catch (e) {
+      // not a health report
+    }
+
+    if (isHealthReport && reportData) {
+      return (
+        <HealthReportView 
+          report={reportData} 
+          currentLang={currentLang} 
+          onNavigateResources={onNavigateResources} 
+          onNavigateSchemes={onNavigateSchemes} 
+          onNavigateEmergencyServices={onNavigateEmergencyServices}
+          setChatInput={setChatInput} 
+        />
+      );
+    }
+
+    const textToShow = reportData && !reportData.isHealthReport && reportData.conversationalResponse
+      ? reportData.conversationalResponse
+      : cleanChatSymbols(msg.content);
+
+    return (
+      <div className="px-4.5 py-3.5 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs bg-white dark:bg-[#1F2937] text-slate-800 dark:text-[#F9FAFB] rounded-tl-none border border-slate-200/60 dark:border-[#374151]">
+        {textToShow}
+      </div>
+    );
   };
 
   return (
@@ -110,15 +465,13 @@ export default function ChatAssistant({
                 )}
                 
                 <div className={`flex flex-col max-w-[82%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                  <div
-                    className={`px-4.5 py-3.5 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs ${
-                      msg.role === "user"
-                        ? "bg-blue-600 dark:bg-[#3B82F6] text-white dark:text-[#F9FAFB] rounded-tr-none"
-                        : "bg-white dark:bg-[#1F2937] text-slate-800 dark:text-[#F9FAFB] rounded-tl-none border border-slate-200/60 dark:border-[#374151]"
-                    }`}
-                  >
-                    {msg.role === "model" ? cleanChatSymbols(msg.content) : msg.content}
-                  </div>
+                  {msg.role === "user" ? (
+                    <div className="px-4.5 py-3.5 rounded-2xl text-xs leading-relaxed whitespace-pre-line shadow-xs bg-blue-600 dark:bg-[#3B82F6] text-white dark:text-[#F9FAFB] rounded-tr-none">
+                      {msg.content}
+                    </div>
+                  ) : (
+                    renderModelMessage(msg)
+                  )}
                   {msg.role === "model" && (
                     <div className="flex items-center gap-1.5 mt-1.5 px-1 bg-slate-50 dark:bg-slate-800/40 rounded-lg py-1 px-2 border border-slate-100 dark:border-slate-800">
                       {isPlayingVoice === msg.id ? (

@@ -12,6 +12,8 @@ const awarenessRoutes = require("./src/routes/awarenessRoutes");
 const chatRoutes = require("./src/routes/chatRoutes");
 const misinfoRoutes = require("./src/routes/misinfoRoutes");
 const placesRoutes = require("./src/routes/placesRoutes");
+const authRoutes = require("./src/routes/authRoutes");
+const feedbackRoutes = require("./src/routes/feedbackRoutes");
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.use("/api/awareness", awarenessRoutes);
 app.use("/api/healix/chat", chatRoutes);
 app.use("/api/healix/misinfo", misinfoRoutes);
 app.use("/api/healix/places", placesRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/healix/feedback", feedbackRoutes);
 
 app.get("/", (req, res) => {
   res.json({

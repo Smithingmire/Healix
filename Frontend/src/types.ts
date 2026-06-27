@@ -29,6 +29,7 @@ export interface HealthLog {
 }
 
 export interface UserSession {
+  _id?: string;
   name: string;
   phone: string;
   pincode: string;
@@ -40,5 +41,19 @@ export interface UserSession {
   password?: string;
   latitude?: number;
   longitude?: number;
+  pastDiseases?: any[];
+  medicalReports?: any[];
+  medications?: any[];
+  coreVitals?: {
+    bloodGroup: string;
+    allergies: string;
+    height: string;
+    weight: string;
+    chronicConditions: string;
+  };
+  chatSessions?: any[];
+  activeSessionId?: string | null;
+  misinfoHistory?: any[];
 }
+
 

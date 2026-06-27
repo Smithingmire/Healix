@@ -24,16 +24,10 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Build conversation context from history
-    const conversationContext = (history || [])
-      .map(msg => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
-      .join("\n");
+    // Pass conversation history as proper multi-turn messages
+    const conversationHistory = history || [];
 
-    const prompt = conversationContext
-      ? `Previous conversation:\n${conversationContext}\n\nUser: ${message}\n\nRespond helpfully as a health assistant.`
-      : message;
-
-    const aiResponse = await aiService.askAI(prompt, targetLanguage);
+    const aiResponse = await aiService.askAI(message, targetLanguage, true, conversationHistory);
 
     let concept = null;
     if (!history || history.length === 0) {

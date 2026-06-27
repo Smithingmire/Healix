@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   Languages, 
   Sun, 
-  Moon
+  Moon,
+  Menu
 } from "lucide-react";
 import { Message, UserSession } from "../../types";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +25,7 @@ interface PortalProps {
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
   activeTab: "chat" | "report-saver" | "schemes" | "resources" | "misinformation" | "profile";
+  onUserUpdate?: (u: UserSession) => void;
 }
 
 // Sub-interfaces for Report Saver
@@ -66,7 +68,7 @@ interface ChatSession {
   messages: Message[];
 }
 
-export default function Portal({ onLogout, user, theme, onThemeChange, activeTab }: PortalProps) {
+export default function Portal({ onLogout, user, theme, onThemeChange, activeTab, onUserUpdate }: PortalProps) {
   const navigate = useNavigate();
   const userEmail = user?.email?.toLowerCase() || "anonymous";
   const getScopedKey = (baseKey: string) => `healix_user_${userEmail}_${baseKey}`;
@@ -80,6 +82,30 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
   };
 
   const [currentUser, setCurrentUser] = useState<UserSession | null>(user);
+
+  const syncUserWithBackend = async (updates: Partial<UserSession>) => {
+    if (!currentUser || !currentUser._id) return;
+    try {
+      const response = await fetch("/api/auth/update", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser._id,
+          updates
+        })
+      });
+      const data = await response.json();
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+        if (onUserUpdate) {
+          onUserUpdate(data.user);
+        }
+        localStorage.setItem("healix_active_user", JSON.stringify(data.user));
+      }
+    } catch (e) {
+      console.error("Failed to sync user updates to MongoDB:", e);
+    }
+  };
 
   // Language state initialized from user session or localstorage
   const [currentLang, setCurrentLang] = useState<string>(() => {
@@ -105,17 +131,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
       };
       setCurrentUser(updatedUser);
       localStorage.setItem("healix_active_user", JSON.stringify(updatedUser));
-      
-      const savedUsersRaw = localStorage.getItem("healix_registered_users");
-      if (savedUsersRaw) {
-        const savedUsers: UserSession[] = JSON.parse(savedUsersRaw);
-        const updatedUsers = savedUsers.map(u => 
-          u.email?.toLowerCase() === currentUser.email?.toLowerCase() || u.phone === currentUser.phone 
-            ? updatedUser 
-            : u
-        );
-        localStorage.setItem("healix_registered_users", JSON.stringify(updatedUsers));
-      }
+      syncUserWithBackend({ language: langCode === "hi" ? "Hindi" : "English" });
     }
   };
 
@@ -176,7 +192,21 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     setIsPlayingVoice(null);
     setIsPausedVoice(false);
 
-    const cleaned = cleanChatSymbols(text);
+    let textToSpeak = text;
+    try {
+      if (text && text.trim().startsWith("{") && text.trim().endsWith("}")) {
+        const parsed = JSON.parse(text);
+        if (parsed.isHealthReport) {
+          textToSpeak = `${parsed.greeting || ""}. Assessment: ${parsed.concernBadge || ""}. ${parsed.concernExplanation || ""} ${parsed.reassuranceMessage || ""}`;
+        } else if (parsed.conversationalResponse) {
+          textToSpeak = parsed.conversationalResponse;
+        }
+      }
+    } catch (e) {
+      // fallback to original text
+    }
+
+    const cleaned = cleanChatSymbols(textToSpeak);
     const utterance = new SpeechSynthesisUtterance(cleaned);
     utteranceRef.current = utterance;
     utterance.lang = lang === "hi" ? "hi-IN" : "en-US";
@@ -243,6 +273,8 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     };
   });
   const [isTrackingLocation, setIsTrackingLocation] = useState(true);
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
+  const [locationErrorMessage, setLocationErrorMessage] = useState<string | null>(null);
   const [manualCityInput, setManualCityInput] = useState("");
   const [citySearchStatus, setCitySearchStatus] = useState("");
   const [activeCityName, setActiveCityName] = useState("Mumbai");
@@ -262,14 +294,16 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
   };
 
   const handleCityGeocode = async (cityQuery: string) => {
-    const cleanedQuery = cityQuery.trim().toLowerCase();
+    const cleanedQuery = cityQuery.trim();
     if (!cleanedQuery) return;
     
     setCitySearchStatus("Searching...");
     
+    const lowerQuery = cleanedQuery.toLowerCase();
+    
     // 1. Check local dictionary
-    if (majorCities[cleanedQuery]) {
-      const coords = majorCities[cleanedQuery];
+    if (majorCities[lowerQuery]) {
+      const coords = majorCities[lowerQuery];
       setUserCoords(coords);
       setActiveCityName(cleanedQuery.charAt(0).toUpperCase() + cleanedQuery.slice(1));
       setCitySearchStatus("City found!");
@@ -278,25 +312,19 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
       return;
     }
     
-    // 2. Query Nominatim geocoder
+    // 2. Query backend geocoder proxy (uses Google Geocoding first, then OSM)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityQuery)}&format=json&limit=1`;
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "HealixHealthCompanion/1.0"
-        }
-      });
+      const url = `/api/healix/places/geocode?query=${encodeURIComponent(cleanedQuery)}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
-          setUserCoords({ lat, lng });
-          setActiveCityName(cityQuery.charAt(0).toUpperCase() + cityQuery.slice(1));
-          setCitySearchStatus("City resolved!");
+        if (data && data.success) {
+          setUserCoords({ lat: data.lat, lng: data.lng });
+          setActiveCityName(data.cityName);
+          setCitySearchStatus("Location resolved!");
           setIsTrackingLocation(false);
         } else {
-          setCitySearchStatus("City not found.");
+          setCitySearchStatus("Location not found.");
         }
       } else {
         setCitySearchStatus("Search failed.");
@@ -326,79 +354,50 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     }
   };
 
-  // Monitor live position
-  useEffect(() => {
-    let active = true;
-
-    const tryIpGeolocation = async () => {
-      try {
-        const response = await fetch("https://ipapi.co/json/");
-        if (response.ok && active) {
-          const data = await response.json();
-          if (data.latitude && data.longitude) {
-            setUserCoords({
-              lat: data.latitude,
-              lng: data.longitude
-            });
-            if (data.city) {
-              setActiveCityName(data.city);
-            }
-            console.log("IP Geolocation resolved:", data.city, data.latitude, data.longitude);
-          }
-        }
-      } catch (err) {
-        console.warn("IP Geolocation fallback failed:", err);
-      }
-    };
-
-    if (isTrackingLocation) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (active) {
-              setUserCoords({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude
-              });
-              setActiveCityName("My Location");
-              reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-            }
-          },
-          (err) => {
-            console.warn("Initial quick getCurrentPosition failed, trying IP:", err);
-            tryIpGeolocation();
-          },
-          { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 }
-        );
-
-        const watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            if (active) {
-              setUserCoords({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude
-              });
-              setActiveCityName("My Location");
-              reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-            }
-          },
-          (err) => {
-            console.warn("Watch position error:", err);
-          },
-          { enableHighAccuracy: true }
-        );
-        return () => {
-          active = false;
-          navigator.geolocation.clearWatch(watchId);
-        };
-      } else {
-        tryIpGeolocation();
-      }
+  const fetchCurrentGPSPosition = (force = false) => {
+    if (!navigator.geolocation) {
+      setLocationErrorMessage("Your browser does not support geolocation.");
+      setIsLocationLoading(false);
+      return;
     }
-    return () => {
-      active = false;
-    };
+
+    setIsLocationLoading(true);
+    setLocationErrorMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+        setActiveCityName("My Location");
+        reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setLocationErrorMessage(null);
+        setIsLocationLoading(false);
+      },
+      (err) => {
+        console.warn("GPS query failed:", err);
+        setLocationErrorMessage("Please turn on your location/GPS to view nearby resources.");
+        setIsLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: force ? 0 : 30000 }
+    );
+  };
+
+  // Monitor live position (one-time fetch when enabled)
+  useEffect(() => {
+    if (isTrackingLocation) {
+      fetchCurrentGPSPosition(false);
+    }
   }, [isTrackingLocation]);
+
+  const requestGPSLocation = () => {
+    if (!isTrackingLocation) {
+      setIsTrackingLocation(true);
+    } else {
+      fetchCurrentGPSPosition(true);
+    }
+  };
 
   // Haversine distance calculator
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -414,18 +413,22 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     return d.toFixed(1);
   };
 
-  // 🗺️ Live Geocoded Resources (OpenStreetMap Overpass API)
+  // 🗺️ Live Geocoded Resources (Strictly Google Places API only)
   const [liveResources, setLiveResources] = useState<any[]>([]);
   const [isResourcesLoading, setIsResourcesLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
     const fetchLiveResources = async () => {
+      if (locationErrorMessage) {
+        setLiveResources([]);
+        setIsResourcesLoading(false);
+        return;
+      }
       setIsResourcesLoading(true);
       
       try {
-        // 1. Try Google Places API first via backend proxy
-        const placesUrl = `/api/healix/places?lat=${userCoords.lat}&lng=${userCoords.lng}&category=${selectedResourceCategory}`;
+        const placesUrl = `/api/healix/places?lat=${userCoords.lat}&lng=${userCoords.lng}&category=${selectedResourceCategory}&city=${encodeURIComponent(activeCityName)}`;
         const placesResponse = await fetch(placesUrl);
         if (placesResponse.ok) {
           const placesData = await placesResponse.json();
@@ -439,99 +442,16 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
               };
             });
             setLiveResources(formatted);
-            setIsResourcesLoading(false);
-            return;
           } else {
-            console.log("Google Places not available or key missing. Trying OpenStreetMap Overpass fallback...");
+            console.warn("No Google Places results found for this category/location.");
+            setLiveResources([]);
           }
-        }
-      } catch (googleErr) {
-        console.warn("Google Places fetch error, falling back to OSM:", googleErr);
-      }
-
-      // 2. OpenStreetMap Overpass API Mirror fallback
-      let osmTag = "[amenity=hospital]";
-      if (selectedResourceCategory === "Pharmacies") {
-        osmTag = "[amenity=pharmacy]";
-      } else if (selectedResourceCategory === "Blood Banks") {
-        osmTag = "[amenity=blood_bank]";
-      } else if (selectedResourceCategory === "Primary Health Centers (PHC)" || selectedResourceCategory === "Community Health Centers") {
-        osmTag = "[amenity=clinic]";
-      } else if (selectedResourceCategory === "Emergency Services") {
-        osmTag = "[amenity=hospital]";
-      }
-      
-      const query = `[out:json][timeout:15];
-      (
-        node(around:8000, ${userCoords.lat}, ${userCoords.lng})${osmTag};
-        way(around:8000, ${userCoords.lat}, ${userCoords.lng})${osmTag};
-      );
-      out center;`;
-      
-      const mirrors = [
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://lz4.overpass-api.de/api/interpreter",
-        "https://overpass.nchc.org.tw/api/interpreter"
-      ];
-
-      let data = null;
-      let success = false;
-
-      for (const mirror of mirrors) {
-        try {
-          const url = `${mirror}?data=${encodeURIComponent(query)}`;
-          const response = await fetch(url);
-          if (response.ok) {
-            data = await response.json();
-            success = true;
-            console.log(`Successfully fetched live resources from mirror: ${mirror}`);
-            break;
-          }
-        } catch (mirrorErr) {
-          console.warn(`Overpass mirror ${mirror} failed:`, mirrorErr);
-        }
-      }
-
-      try {
-        if (!success || !data) throw new Error("All Overpass API mirrors failed.");
-        
-        if (!active) return;
-        
-        if (data && data.elements && data.elements.length > 0) {
-          const formatted = data.elements.slice(0, 10).map((element: any, idx: number) => {
-            const lat = element.lat || (element.center && element.center.lat) || userCoords.lat;
-            const lng = element.lon || (element.center && element.center.lon) || userCoords.lng;
-            const name = element.tags.name || element.tags["name:en"] || `${selectedResourceCategory} Facility`;
-            
-            const street = element.tags["addr:street"] || element.tags["addr:suburb"] || "";
-            const city = element.tags["addr:city"] || "Mumbai";
-            const postcode = element.tags["addr:postcode"] || "";
-            let address = [street, city, postcode].filter(Boolean).join(", ");
-            if (!address) {
-              address = `Located near ${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`;
-            }
-            
-            const distance = calculateDistance(userCoords.lat, userCoords.lng, lat, lng);
-            
-            return {
-              id: `live-${idx}`,
-              name,
-              rating: parseFloat((4.0 + Math.random() * 0.9).toFixed(1)),
-              address,
-              phone: element.tags.phone || element.tags["contact:phone"] || "+91 22 2414 1414",
-              lat,
-              lng,
-              distance: `${distance} km`,
-              status: "Open 24 hrs"
-            };
-          });
-          setLiveResources(formatted);
         } else {
+          console.error("Failed to query Google Places API backend route.");
           setLiveResources([]);
         }
-      } catch (err) {
-        console.warn("Failed to fetch live resources:", err);
+      } catch (googleErr) {
+        console.error("Google Places fetch error:", googleErr);
         setLiveResources([]);
       } finally {
         if (active) setIsResourcesLoading(false);
@@ -542,7 +462,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     return () => {
       active = false;
     };
-  }, [selectedResourceCategory, userCoords]);
+  }, [selectedResourceCategory, userCoords, locationErrorMessage, activeCityName]);
 
   // Load real Place details (phone, ratings) on selection
   useEffect(() => {
@@ -661,26 +581,23 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
   const [misinfoClaim, setMisinfoClaim] = useState("");
   const [isMisinfoLoading, setIsMisinfoLoading] = useState(false);
   const [misinfoResult, setMisinfoResult] = useState<any | null>(null);
-  const [misinfoHistory, setMisinfoHistory] = useState<{ claim: string; result: any; timestamp: string }[]>(() => {
-    const saved = localStorage.getItem("healix_misinfo_history");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [misinfoHistory, setMisinfoHistory] = useState<{ claim: string; result: any; timestamp: string }[]>([]);
   const [isFeaturesMinimized, setIsFeaturesMinimized] = useState(false);
 
   // Save claim to history when a result is loaded
   useEffect(() => {
     if (misinfoResult && misinfoClaim) {
-      setMisinfoHistory(prev => {
-        if (prev.length > 0 && prev[0].claim === misinfoClaim) return prev;
-        const newHistoryItem = {
-          claim: misinfoClaim,
-          result: misinfoResult,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        const updated = [newHistoryItem, ...prev.filter(h => h.claim !== misinfoClaim)].slice(0, 10);
-        localStorage.setItem("healix_misinfo_history", JSON.stringify(updated));
-        return updated;
-      });
+      const isAlreadyInHistory = misinfoHistory.length > 0 && misinfoHistory[0].claim === misinfoClaim;
+      if (isAlreadyInHistory) return;
+
+      const newHistoryItem = {
+        claim: misinfoClaim,
+        result: misinfoResult,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      const updated = [newHistoryItem, ...misinfoHistory.filter(h => h.claim !== misinfoClaim)].slice(0, 10);
+      setMisinfoHistory(updated);
+      syncUserWithBackend({ misinfoHistory: updated });
     }
   }, [misinfoResult]);
 
@@ -801,54 +718,70 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     setEligibilityResult(matched);
   };
 
-  // Sidebar responsive toggle on Mobile
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // Sidebar minimize toggle on Desktop (persisted in localStorage)
-  const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(() => {
-    const saved = localStorage.getItem("healix_sidebar_minimized");
-    return saved === "true";
+  // Sidebar show/hide state (persisted in localStorage)
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem("healix_sidebar_open");
+    return saved === null ? true : saved === "true";
   });
+
+  useEffect(() => {
+    localStorage.setItem("healix_sidebar_open", String(isSidebarOpen));
+  }, [isSidebarOpen]);
 
   // Citizen Feedback State Variables
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [feedbacks, setFeedbacks] = useState<any[]>(() => {
-    const raw = localStorage.getItem("healix_feedbacks");
-    return raw ? JSON.parse(raw) : [];
-  });
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+
+  // Fetch feedbacks from MongoDB on mount
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        const response = await fetch("/api/healix/feedback");
+        const data = await response.json();
+        if (data.success && Array.isArray(data.feedbacks)) {
+          setFeedbacks(data.feedbacks);
+        }
+      } catch (e) {
+        console.error("Failed to fetch feedbacks in Portal:", e);
+      }
+    };
+    fetchFeedbacks();
+  }, []);
 
   const currentUserIdentifier = user?.email || user?.phone || "";
   const userFeedback = feedbacks.find(f => f.emailOrPhone.toLowerCase() === currentUserIdentifier.toLowerCase());
   const hasSubmittedFeedback = !!userFeedback;
 
-  const handleFeedbackSubmit = (e: React.FormEvent) => {
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserIdentifier) return;
 
-    const newFeedback = {
-      emailOrPhone: currentUserIdentifier,
-      rating: feedbackRating,
-      comment: feedbackComment,
-      userName: user?.name || "Citizen",
-      date: new Date().toLocaleDateString()
-    };
-
-    const updated = [newFeedback, ...feedbacks];
-    setFeedbacks(updated);
-    localStorage.setItem("healix_feedbacks", JSON.stringify(updated));
-    setTimeout(() => {
-      setIsFeedbackOpen(false);
-    }, 1500);
+    try {
+      const response = await fetch("/api/healix/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: user?.name || "Citizen",
+          emailOrPhone: currentUserIdentifier,
+          rating: feedbackRating,
+          comment: feedbackComment
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setFeedbacks(prev => [data.feedback, ...prev]);
+        setTimeout(() => {
+          setIsFeedbackOpen(false);
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
+    }
   };
 
-  // Persist sidebar minimize state
-  const handleToggleMinimize = () => {
-    const nextState = !isSidebarMinimized;
-    setIsSidebarMinimized(nextState);
-    localStorage.setItem("healix_sidebar_minimized", String(nextState));
-  };
+
 
   // Dynamic User Info from Session
   const userProfile: UserSession = {
@@ -910,74 +843,62 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
   const [medPurpose, setMedPurpose] = useState("");
   const [showAddMed, setShowAddMed] = useState(false);
 
-  // Load from localStorage on mount/user change
+  // Load from MongoDB on mount/user change
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user._id) return;
 
-    const savedDiseases = localStorage.getItem(getScopedKey("past_diseases"));
-    const savedReports = localStorage.getItem(getScopedKey("medical_reports"));
-    const savedMeds = localStorage.getItem(getScopedKey("medications"));
-    const savedVitals = localStorage.getItem(getScopedKey("core_vitals"));
+    const fetchLatestUser = async () => {
+      try {
+        const response = await fetch(`/api/auth/user/${user._id}`);
+        const data = await response.json();
+        if (data.success && data.user) {
+          const latestUser = data.user;
+          setCurrentUser(latestUser);
+          if (onUserUpdate) {
+            onUserUpdate(latestUser);
+          }
+          localStorage.setItem("healix_active_user", JSON.stringify(latestUser));
 
-    if (savedDiseases) setPastDiseases(JSON.parse(savedDiseases));
-    else {
-      setPastDiseases([]);
-      localStorage.setItem(getScopedKey("past_diseases"), JSON.stringify([]));
-    }
+          // Populate states directly from MongoDB
+          setPastDiseases(latestUser.pastDiseases || []);
+          setMedicalReports(latestUser.medicalReports || []);
+          setMedications(latestUser.medications || []);
+          
+          const vitals = latestUser.coreVitals || {
+            bloodGroup: "",
+            allergies: "",
+            height: "",
+            weight: "",
+            chronicConditions: ""
+          };
+          setCoreVitals(vitals);
+          setTempVitals(vitals);
+          
+          setSessions(latestUser.chatSessions || []);
+          setActiveSessionId(latestUser.activeSessionId || null);
+          setMisinfoHistory(latestUser.misinfoHistory || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest user data from MongoDB:", err);
+      }
+    };
 
-    if (savedReports) setMedicalReports(JSON.parse(savedReports));
-    else {
-      setMedicalReports([]);
-      localStorage.setItem(getScopedKey("medical_reports"), JSON.stringify([]));
-    }
-
-    if (savedMeds) setMedications(JSON.parse(savedMeds));
-    else {
-      setMedications([]);
-      localStorage.setItem(getScopedKey("medications"), JSON.stringify([]));
-    }
-
-    if (savedVitals) {
-      const vit = JSON.parse(savedVitals);
-      setCoreVitals(vit);
-      setTempVitals(vit);
-    } else {
-      const emptyVitals = {
-        bloodGroup: "",
-        allergies: "",
-        height: "",
-        weight: "",
-        chronicConditions: ""
-      };
-      setCoreVitals(emptyVitals);
-      setTempVitals(emptyVitals);
-      localStorage.setItem(getScopedKey("core_vitals"), JSON.stringify(emptyVitals));
-    }
-
-    const savedSessions = localStorage.getItem(getScopedKey("chat_sessions"));
-    if (savedSessions) setSessions(JSON.parse(savedSessions));
-    else {
-      setSessions([]);
-      localStorage.setItem(getScopedKey("chat_sessions"), JSON.stringify([]));
-    }
-
-    const savedActiveSessionId = localStorage.getItem(getScopedKey("active_session_id"));
-    setActiveSessionId(savedActiveSessionId || null);
-  }, [user]);
+    fetchLatestUser();
+  }, [user?._id]);
 
   const saveDiseasesToStore = (list: PastDisease[]) => {
     setPastDiseases(list);
-    localStorage.setItem(getScopedKey("past_diseases"), JSON.stringify(list));
+    syncUserWithBackend({ pastDiseases: list });
   };
 
   const saveReportsToStore = (list: MedicalReport[]) => {
     setMedicalReports(list);
-    localStorage.setItem(getScopedKey("medical_reports"), JSON.stringify(list));
+    syncUserWithBackend({ medicalReports: list });
   };
 
   const saveMedsToStore = (list: Medication[]) => {
     setMedications(list);
-    localStorage.setItem(getScopedKey("medications"), JSON.stringify(list));
+    syncUserWithBackend({ medications: list });
   };
 
   const handleAddDiseaseSubmit = (e: React.FormEvent) => {
@@ -1075,7 +996,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
 
   const handleSaveVitals = () => {
     setCoreVitals(tempVitals);
-    localStorage.setItem(getScopedKey("core_vitals"), JSON.stringify(tempVitals));
+    syncUserWithBackend({ coreVitals: tempVitals });
     setIsEditingVitals(false);
   };
 
@@ -1107,22 +1028,28 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, isChatLoading]);
 
+  const syncSessionsAndActive = (updatedSessions: ChatSession[], activeId: string | null) => {
+    setSessions(updatedSessions);
+    setActiveSessionId(activeId);
+    syncUserWithBackend({ chatSessions: updatedSessions, activeSessionId: activeId });
+  };
+
   // Persist sessions and active session ID on change
   const saveSessions = (updatedSessions: ChatSession[]) => {
     setSessions(updatedSessions);
-    localStorage.setItem(getScopedKey("chat_sessions"), JSON.stringify(updatedSessions));
+    syncUserWithBackend({ chatSessions: updatedSessions });
   };
 
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
-    localStorage.setItem(getScopedKey("active_session_id"), sessionId);
+    syncUserWithBackend({ activeSessionId: sessionId });
     navigate("/portal");
     setIsSidebarOpen(false); // Close on mobile if open
   };
 
   const handleNewChat = () => {
     setActiveSessionId(null);
-    localStorage.removeItem(getScopedKey("active_session_id"));
+    syncUserWithBackend({ activeSessionId: null });
     navigate("/portal");
     setChatInput("");
     setIsSidebarOpen(false); // Close on mobile
@@ -1131,10 +1058,10 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
   const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     const filtered = sessions.filter(s => s.id !== sessionId);
-    saveSessions(filtered);
     if (activeSessionId === sessionId) {
-      setActiveSessionId(null);
-      localStorage.removeItem(getScopedKey("active_session_id"));
+      syncSessionsAndActive(filtered, null);
+    } else {
+      saveSessions(filtered);
     }
   };
 
@@ -1168,7 +1095,6 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
       };
       updatedSessions = [newSession, ...updatedSessions];
       setActiveSessionId(currentSessionId);
-      localStorage.setItem(getScopedKey("active_session_id"), currentSessionId);
     } else {
       // Append to existing session
       updatedSessions = updatedSessions.map(s => {
@@ -1182,7 +1108,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
       });
     }
 
-    saveSessions(updatedSessions);
+    syncSessionsAndActive(updatedSessions, currentSessionId);
     setChatInput("");
     setIsChatLoading(true);
 
@@ -1267,8 +1193,6 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
         activeTab={activeTab}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
-        isSidebarMinimized={isSidebarMinimized}
-        setIsSidebarMinimized={setIsSidebarMinimized}
         isFeaturesMinimized={isFeaturesMinimized}
         setIsFeaturesMinimized={setIsFeaturesMinimized}
         sessions={sessions}
@@ -1286,8 +1210,10 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
         setFeedbackComment={setFeedbackComment}
         handleFeedbackSubmit={handleFeedbackSubmit}
         onLogout={onLogout}
-        handleToggleMinimize={handleToggleMinimize}
         navigateTab={(tabPath) => navigate(tabPath)}
+        theme={theme}
+        onThemeChange={onThemeChange}
+        handleUpdateLanguage={handleUpdateLanguage}
       />
 
       {/* 2. MAIN WORKSPACE CONTAINER */}
@@ -1296,54 +1222,28 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
         {/* Workspace Top Header Bar */}
         <header className="bg-white dark:bg-[#1F2937] border-b border-slate-200 dark:border-[#374151] h-14 shrink-0 flex items-center px-4 md:px-6 justify-between z-10 shadow-xs transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 select-none">
-              <span className="text-sm font-black text-[#1E88E5] dark:text-white tracking-tight">Healix</span>
-              <span className="text-slate-300 dark:text-slate-700">|</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-350 transition cursor-pointer flex items-center justify-center border-none bg-transparent"
+              title="Toggle Menu"
+            >
+              <Menu className="h-4.5 w-4.5" />
+            </button>
+            <div className="flex items-center gap-2 select-none min-w-0">
+              <span className="text-sm font-black text-[#1E88E5] dark:text-white tracking-tight shrink-0">Healix</span>
+              <span className="text-slate-300 dark:text-slate-700 shrink-0">|</span>
+              <span 
+                className="text-[9px] sm:text-[11px] md:text-xs text-slate-500 dark:text-slate-400 font-extrabold tracking-tight whitespace-nowrap shrink-0"
+              >
                 {activeTab === "chat" && (activeSession ? `${activeSession.title}` : t.chatTabTitle)}
                 {activeTab === "report-saver" && `📄 ${t.reportsTabTitle}`}
                 {activeTab === "schemes" && `🏥 ${t.schemesTabTitle}`}
                 {activeTab === "resources" && `📍 ${t.resourcesTabTitle}`}
                 {activeTab === "misinformation" && `🛡️ ${t.misinfoTabTitle}`}
                 {activeTab === "profile" && `⚙️ ${t.profileTabTitle}`}
-
               </span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Beautiful Language Selector Dropdown */}
-            <div className="relative flex items-center">
-              <Languages className="absolute left-2.5 h-4 w-4 text-slate-500 dark:text-slate-300 pointer-events-none" />
-              <select
-                value={currentLang}
-                onChange={(e) => {
-                  handleUpdateLanguage(e.target.value as "en" | "hi");
-                }}
-                className="pl-8.5 pr-2 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-300 hover:text-[#1E88E5] dark:hover:text-blue-400 text-xs font-semibold border border-slate-100 dark:border-slate-700/50 focus:outline-hidden cursor-pointer transition duration-200 appearance-none select-none min-w-[120px]"
-                title="Select Language"
-              >
-                {languages.map((lang) => (
-                  <option key={lang.code} value={lang.code} className="dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Premium Theme Switcher */}
-            <button
-              type="button"
-              onClick={() => onThemeChange(theme === "light" ? "dark" : "light")}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-[#1E88E5] dark:hover:text-blue-400 transition cursor-pointer flex items-center justify-center border border-slate-100 dark:border-slate-700/50"
-              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-            >
-              {theme === "light" ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-            </button>
           </div>
         </header>
 
@@ -1373,6 +1273,12 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
               resumeVoice={resumeVoice}
               stopVoice={stopVoice}
               cleanChatSymbols={cleanChatSymbols}
+              onNavigateResources={() => navigate("/portal/resources")}
+              onNavigateSchemes={() => navigate("/portal/schemes")}
+              onNavigateEmergencyServices={() => {
+                setSelectedResourceCategory("Emergency Services");
+                navigate("/portal/resources");
+              }}
             />
           )}
 
@@ -1418,6 +1324,9 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
               t={t}
               isTrackingLocation={isTrackingLocation}
               setIsTrackingLocation={setIsTrackingLocation}
+              isLocationLoading={isLocationLoading}
+              locationErrorMessage={locationErrorMessage}
+              requestGPSLocation={requestGPSLocation}
               citySearchStatus={citySearchStatus}
               manualCityInput={manualCityInput}
               setManualCityInput={setManualCityInput}
@@ -1464,6 +1373,7 @@ export default function Portal({ onLogout, user, theme, onThemeChange, activeTab
               handleUpdateLanguage={handleUpdateLanguage}
               userCoords={userCoords}
               setUserCoords={setUserCoords}
+              syncUserWithBackend={syncUserWithBackend}
             />
           )}
 

@@ -63,6 +63,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -82,6 +83,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -101,6 +103,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -120,6 +123,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -139,6 +143,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -158,6 +163,7 @@ function AppRoutes({
               user={user} 
               theme={theme} 
               onThemeChange={handleThemeChange} 
+              onUserUpdate={handleLoginSuccess}
             />
           ) : (
             <Navigate to="/login" replace />

@@ -13,6 +13,7 @@ interface ProfileSettingsProps {
   handleUpdateLanguage: (lang: "en" | "hi") => void;
   userCoords: { lat: number; lng: number };
   setUserCoords: (coords: { lat: number; lng: number }) => void;
+  syncUserWithBackend: (updates: Partial<UserSession>) => Promise<void>;
 }
 
 export default function ProfileSettings({
@@ -24,7 +25,8 @@ export default function ProfileSettings({
   currentLang,
   handleUpdateLanguage,
   userCoords,
-  setUserCoords
+  setUserCoords,
+  syncUserWithBackend
 }: ProfileSettingsProps) {
   const getInitials = (name: string) => {
     if (!name) return "U";
@@ -100,7 +102,7 @@ export default function ProfileSettings({
                           const updatedCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                           setUserCoords(updatedCoords);
                           
-                          // Update active user in local storage
+                          // Update active user in state and MongoDB
                           if (currentUser) {
                             const updatedUser = { 
                               ...currentUser, 
@@ -109,6 +111,10 @@ export default function ProfileSettings({
                             };
                             setCurrentUser(updatedUser);
                             localStorage.setItem("healix_active_user", JSON.stringify(updatedUser));
+                            syncUserWithBackend({
+                              latitude: pos.coords.latitude,
+                              longitude: pos.coords.longitude
+                            });
                           }
                         },
                         (err) => console.error(err)
@@ -138,21 +144,8 @@ export default function ProfileSettings({
                     setCurrentUser(updatedUser);
                     localStorage.setItem("healix_active_user", JSON.stringify(updatedUser));
                     
-                    // Also update in registered users database to persist across logins
-                    const rawUsers = localStorage.getItem("healix_registered_users");
-                    if (rawUsers) {
-                      try {
-                        const parsed = JSON.parse(rawUsers);
-                        if (Array.isArray(parsed)) {
-                          const updatedList = parsed.map(u => 
-                            (u.email === currentUser.email || u.phone === currentUser.phone)
-                              ? { ...u, pincode: newPin }
-                              : u
-                          );
-                          localStorage.setItem("healix_registered_users", JSON.stringify(updatedList));
-                        }
-                      } catch (err) {}
-                    }
+                    // Sync pincode to MongoDB
+                    syncUserWithBackend({ pincode: newPin });
                   }
                 }}
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
